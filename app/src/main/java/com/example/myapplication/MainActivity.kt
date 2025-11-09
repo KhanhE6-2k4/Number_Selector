@@ -3,129 +3,157 @@ package com.example.myapplication
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.EditText
-import android.widget.Spinner
-import androidx.activity.enableEdgeToEdge
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import java.text.NumberFormat
-import java.util.Locale
+import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var amountEditTextFrom: EditText
-    private lateinit var amountEditTextTo: EditText
-    private lateinit var currencySpinnerFrom: Spinner
-    private lateinit var currencySpinnerTo: Spinner
-
-    private var isUpdatingText = false
-
-    private val EXCHANGE_RATES = mapOf(
-        "VND" to 1.0,
-        "USD" to 26088.0,
-        "EUR" to 29579.62,
-        "JPY" to 162.75,
-        "GBP" to 32250.0,
-        "AUD" to 16610.0,
-        "SGD" to 18700.0,
-        "CAD" to 18162.0,
-        "CHF" to 31786.0,
-        "CNY" to 3602.0,
-        "KRW" to 15.68,
-        "GBP" to 33653.29,
-        "HKD" to 3288.73,
-        "THB" to 716.40
-
-
-    )
+    private lateinit var etNum: EditText
+    private lateinit var lvResult: ListView
+    private lateinit var tvMsg: TextView
+    private lateinit var radios: List<RadioButton>
+    private lateinit var adapter: ArrayAdapter<Long>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
-        amountEditTextFrom = findViewById(R.id.editTextAmount1)
-        amountEditTextTo = findViewById(R.id.editTextAmount2)
-        currencySpinnerFrom = findViewById(R.id.spinnerCurrency1)
-        currencySpinnerTo = findViewById(R.id.spinnerCurrency2)
+        etNum = findViewById(R.id.etNumber)
+        lvResult = findViewById(R.id.listView)
+        tvMsg = findViewById(R.id.tvMessage)
 
-        val currencies = EXCHANGE_RATES.keys.toTypedArray()
+        radios = listOf(
+            findViewById(R.id.rbLe),
+            findViewById(R.id.rbChan),
+            findViewById(R.id.rbNguyenTo),
+            findViewById(R.id.rbChinhPhuong),
+            findViewById(R.id.rbHoanHao),
+            findViewById(R.id.rbFibo)
+        )
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, currencies)
-        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+        adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, mutableListOf<Long>())
+        lvResult.adapter = adapter
 
-        currencySpinnerFrom.adapter = adapter
-        currencySpinnerTo.adapter = adapter
-
-        currencySpinnerFrom.setSelection(currencies.indexOf("VND"))
-        currencySpinnerTo.setSelection(currencies.indexOf("USD"))
-
-        // TextWatcher: nhập ở ô trên
-        amountEditTextFrom.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                updateConversion(isFromInput = true)
-            }
-            override fun afterTextChanged(s: Editable?) {}
+        etNum.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { update() }
+            override fun beforeTextChanged(s: CharSequence?, st: Int, cnt: Int, aft: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, bef: Int, cnt: Int) {}
         })
 
-        // TextWatcher: nhập ở ô dưới
-        amountEditTextTo.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                updateConversion(isFromInput = false)
+        // Quản lý chọn/bỏ chọn RadioButton
+        radios.forEach { rb ->
+            rb.setOnClickListener {
+                radios.forEach { it.isChecked = false }
+                rb.isChecked = true
+                update()
             }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        val spinnerListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                updateConversion(isFromInput = true)
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        currencySpinnerFrom.onItemSelectedListener = spinnerListener
-        currencySpinnerTo.onItemSelectedListener = spinnerListener
+        showMsg("Nhập số nguyên để xem kết quả")
     }
 
-    private fun updateConversion(isFromInput: Boolean) {
-        if (isUpdatingText) return
-        isUpdatingText = true
+    private fun update() {
+        val txt = etNum.text.toString().trim()
 
-        val editSource = if (isFromInput) amountEditTextFrom else amountEditTextTo
-        val editTarget = if (isFromInput) amountEditTextTo else amountEditTextFrom
-
-        val spinnerSource = if (isFromInput) currencySpinnerFrom else currencySpinnerTo
-        val spinnerTarget = if (isFromInput) currencySpinnerTo else currencySpinnerFrom
-
-        val amount = editSource.text.toString().toDoubleOrNull()
-        if (amount == null) {
-            editTarget.setText("")
-            isUpdatingText = false
+        if (txt.isEmpty()) {
+            showMsg("Nhập số nguyên để xem kết quả")
             return
         }
 
-        val fromCurrency = spinnerSource.selectedItem.toString()
-        val toCurrency = spinnerTarget.selectedItem.toString()
+        val n = txt.toLongOrNull()
+        if (n == null || n <= 0) {
+            showMsg("Vui lòng nhập số nguyên dương")
+            return
+        }
 
-        val result = convertCurrency(amount, fromCurrency, toCurrency)
-        editTarget.setText(formatCurrency(result))
+        val res = when {
+            radios[0].isChecked -> getOdd(n)
+            radios[1].isChecked -> getEven(n)
+            radios[2].isChecked -> getPrimes(n)
+            radios[3].isChecked -> getSquares(n)
+            radios[4].isChecked -> getPerfects(n)
+            radios[5].isChecked -> getFibos(n)
+            else -> emptyList()
+        }
 
-        isUpdatingText = false
+        if (res.isEmpty()) {
+            showMsg("Không có số nào thỏa mãn")
+        } else {
+            tvMsg.visibility = TextView.GONE
+            adapter.clear()
+            adapter.addAll(res)
+            adapter.notifyDataSetChanged()
+        }
     }
 
-    private fun convertCurrency(amount: Double, from: String, to: String): Double {
-        val fromRate = EXCHANGE_RATES[from] ?: 1.0
-        val toRate = EXCHANGE_RATES[to] ?: 1.0
-        return amount * fromRate / toRate
+    private fun showMsg(msg: String) {
+        adapter.clear()
+        adapter.notifyDataSetChanged()
+        tvMsg.text = msg
+        tvMsg.visibility = TextView.VISIBLE
     }
 
-    private fun formatCurrency(amount: Double): String {
-        return NumberFormat.getNumberInstance(Locale.US).apply {
-            maximumFractionDigits = 4
-        }.format(amount)
+    private fun getOdd(n: Long) = (1 until n step 2).toList()
+
+    private fun getEven(n: Long) = (2 until n step 2).toList()
+
+    private fun getPrimes(n: Long) = (2 until n).filter { isPrime(it) }
+
+    private fun getSquares(n: Long): List<Long> {
+        val res = mutableListOf<Long>()
+        var i = 1L
+        while (i * i < n) {
+            res.add(i * i)
+            i++
+        }
+        return res
+    }
+
+    private fun getPerfects(n: Long): List<Long> {
+        val lim = minOf(n, 100000L)
+        if (n > 100000L) {
+            Toast.makeText(this, "Giới hạn tìm kiếm: 100,000", Toast.LENGTH_SHORT).show()
+        }
+        return (2 until lim).filter { isPerfect(it) }
+    }
+
+    private fun getFibos(n: Long): List<Long> {
+        if (n <= 1) return emptyList()
+        val res = mutableListOf<Long>()
+        var a = 0L
+        var b = 1L
+        while (b < n) {
+            res.add(b)
+            val tmp = a + b
+            a = b
+            b = tmp
+        }
+        return res
+    }
+
+    private fun isPrime(num: Long): Boolean {
+        if (num < 2) return false
+        if (num == 2L) return true
+        if (num % 2 == 0L) return false
+        val r = sqrt(num.toDouble()).toLong()
+        for (i in 3..r step 2) {
+            if (num % i == 0L) return false
+        }
+        return true
+    }
+
+    private fun isPerfect(num: Long): Boolean {
+        if (num <= 1) return false
+        var sum = 1L
+        val r = sqrt(num.toDouble()).toLong()
+        for (i in 2..r) {
+            if (num % i == 0L) {
+                sum += i
+                val other = num / i
+                if (other != i) sum += other
+            }
+        }
+        return sum == num
     }
 }
