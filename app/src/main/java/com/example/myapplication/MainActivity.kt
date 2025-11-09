@@ -1,184 +1,131 @@
 package com.example.myapplication
 
-import android.graphics.Color
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
-import android.widget.*
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.EditText
+import android.widget.Spinner
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import java.text.NumberFormat
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var etFirstName: EditText
-    private lateinit var etLastName: EditText
-    private lateinit var etBirthDay: EditText
-    private lateinit var etAddress: EditText
-    private lateinit var etEmail: EditText
-    private lateinit var rgGender: RadioGroup
-    private lateinit var rbMale: RadioButton
-    private lateinit var rbFemale: RadioButton
-    private lateinit var calendarView: CalendarView
-    private lateinit var cbTerms: CheckBox
-    private lateinit var btnSelect: Button
-    private lateinit var btnRegister: Button
+    private lateinit var amountEditTextFrom: EditText
+    private lateinit var amountEditTextTo: EditText
+    private lateinit var currencySpinnerFrom: Spinner
+    private lateinit var currencySpinnerTo: Spinner
 
-    private var isCalendarVisible = false
-    private var selectedDate = ""
+    private var isUpdatingText = false
+
+    private val EXCHANGE_RATES = mapOf(
+        "VND" to 1.0,
+        "USD" to 26088.0,
+        "EUR" to 29579.62,
+        "JPY" to 162.75,
+        "GBP" to 32250.0,
+        "AUD" to 16610.0,
+        "SGD" to 18700.0,
+        "CAD" to 18162.0,
+        "CHF" to 31786.0,
+        "CNY" to 3602.0,
+        "KRW" to 15.68,
+        "GBP" to 33653.29,
+        "HKD" to 3288.73,
+        "THB" to 716.40
+
+
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.form_layout)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
 
-        initViews()
+        amountEditTextFrom = findViewById(R.id.editTextAmount1)
+        amountEditTextTo = findViewById(R.id.editTextAmount2)
+        currencySpinnerFrom = findViewById(R.id.spinnerCurrency1)
+        currencySpinnerTo = findViewById(R.id.spinnerCurrency2)
 
-        setupListeners()
-    }
-    private fun initViews() {
-        etFirstName = findViewById<EditText>(R.id.etFirstName)
-        etLastName = findViewById<EditText>(R.id.etLastName)
-        etBirthDay = findViewById<EditText>(R.id.etBirthDay)
-        etAddress = findViewById<EditText>(R.id.etAddress)
-        etEmail = findViewById<EditText>(R.id.etEmail)
-        rgGender = findViewById<RadioGroup>(R.id.rgGender)
-        rbMale = findViewById<RadioButton>(R.id.rbMale)
-        rbFemale = findViewById<RadioButton>(R.id.rbFemale)
-        calendarView = findViewById<CalendarView>(R.id.calendarView)
-        cbTerms = findViewById<CheckBox>(R.id.cbTerms)
-        btnSelect = findViewById<Button>(R.id.btnSelect)
-        btnRegister = findViewById<Button>(R.id.btnRegister)
-        calendarView.visibility = View.GONE // ẩn calendar khi vào ứng dụng
-    }
+        val currencies = EXCHANGE_RATES.keys.toTypedArray()
 
-    private fun setupListeners() {
-        btnSelect.setOnClickListener {
-            toggleCalendar()
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, currencies)
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+
+        currencySpinnerFrom.adapter = adapter
+        currencySpinnerTo.adapter = adapter
+
+        currencySpinnerFrom.setSelection(currencies.indexOf("VND"))
+        currencySpinnerTo.setSelection(currencies.indexOf("USD"))
+
+        // TextWatcher: nhập ở ô trên
+        amountEditTextFrom.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateConversion(isFromInput = true)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        // TextWatcher: nhập ở ô dưới
+        amountEditTextTo.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateConversion(isFromInput = false)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        val spinnerListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                updateConversion(isFromInput = true)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
-            selectedDate = "$dayOfMonth/${month + 1}/$year"
-            etBirthDay.setText(selectedDate)
-            resetBackground(etBirthDay)
-            toggleCalendar()
-        }
-        // Reset background when user starts typing/selecting
-        etFirstName.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus)
-                resetBackground(etFirstName)
-        }
-
-        etLastName.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus)
-                resetBackground(etLastName)
-        }
-
-        etBirthDay.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus)
-                resetBackground(etBirthDay)
-        }
-
-        etAddress.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus)
-                resetBackground(etAddress)
-        }
-
-        etEmail.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus)
-                resetBackground(etEmail)
-        }
-
-        rgGender.setOnCheckedChangeListener { _, hasFocus ->
-            resetBackground(rgGender)
-        }
-
-        cbTerms.setOnCheckedChangeListener { _, hasFocus ->
-            if (hasFocus)
-                resetBackground(cbTerms)
-        }
-        // Register button
-        btnRegister.setOnClickListener {
-            validateAndRegister()
-        }
-
+        currencySpinnerFrom.onItemSelectedListener = spinnerListener
+        currencySpinnerTo.onItemSelectedListener = spinnerListener
     }
 
-    private fun toggleCalendar() {
-        isCalendarVisible = if (isCalendarVisible) {
-            calendarView.visibility = View.GONE
-            false
+    private fun updateConversion(isFromInput: Boolean) {
+        if (isUpdatingText) return
+        isUpdatingText = true
+
+        val editSource = if (isFromInput) amountEditTextFrom else amountEditTextTo
+        val editTarget = if (isFromInput) amountEditTextTo else amountEditTextFrom
+
+        val spinnerSource = if (isFromInput) currencySpinnerFrom else currencySpinnerTo
+        val spinnerTarget = if (isFromInput) currencySpinnerTo else currencySpinnerFrom
+
+        val amount = editSource.text.toString().toDoubleOrNull()
+        if (amount == null) {
+            editTarget.setText("")
+            isUpdatingText = false
+            return
         }
-        else {
-            calendarView.visibility = View.VISIBLE
-            true
-        }
+
+        val fromCurrency = spinnerSource.selectedItem.toString()
+        val toCurrency = spinnerTarget.selectedItem.toString()
+
+        val result = convertCurrency(amount, fromCurrency, toCurrency)
+        editTarget.setText(formatCurrency(result))
+
+        isUpdatingText = false
     }
 
-    private fun validateAndRegister() {
-        var isValid = true
-
-        // Validate First name
-        if (etFirstName.text.toString().trim().isEmpty()) {
-            setErrorBackground(etFirstName)
-            isValid = false
-        }
-
-        // Validate Last name
-        if (etLastName.text.toString().trim().isEmpty()) {
-            setErrorBackground(etLastName)
-            isValid = false
-        }
-
-        // Validate Gender
-        if (rgGender.checkedRadioButtonId == -1) {
-            setErrorBackground(rgGender)
-            isValid = false
-        }
-
-        // Validate Birthday
-        if (etBirthDay.text.toString().trim().isEmpty()) {
-            setErrorBackground(etBirthDay)
-            isValid = false
-        }
-
-        // Validate Address
-        if (etAddress.text.toString().trim().isEmpty()) {
-            setErrorBackground(etAddress)
-            isValid = false
-        }
-
-        // Validate Email
-        if (etEmail.text.toString().trim().isEmpty()) {
-            setErrorBackground(etEmail)
-            isValid = false
-        }
-
-        // Validate Terms
-        if (!cbTerms.isChecked) {
-            setErrorBackground(cbTerms)
-            isValid = false
-        }
-
-        if (isValid) {
-            Toast.makeText(this, "The register proccess has been successfully", Toast.LENGTH_SHORT).show()
-            // Map and process data
-        }
-        else {
-            Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show()
-        }
+    private fun convertCurrency(amount: Double, from: String, to: String): Double {
+        val fromRate = EXCHANGE_RATES[from] ?: 1.0
+        val toRate = EXCHANGE_RATES[to] ?: 1.0
+        return amount * fromRate / toRate
     }
 
-    private fun getSelectedGender(): String {
-        return when (rgGender.checkedRadioButtonId) {
-            R.id.rbMale -> "Male"
-            R.id.rbFemale -> "Female"
-            else -> ""
-        }
+    private fun formatCurrency(amount: Double): String {
+        return NumberFormat.getNumberInstance(Locale.US).apply {
+            maximumFractionDigits = 4
+        }.format(amount)
     }
-
-    private fun setErrorBackground(view: View) {
-        view.setBackgroundColor((Color.parseColor("#FFCCCC")))
-    }
-
-    private fun resetBackground(view: View) {
-        view.setBackgroundColor(Color.parseColor("#EEEEEE"))
-    }
-
 }
